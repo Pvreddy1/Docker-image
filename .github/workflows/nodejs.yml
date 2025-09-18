@@ -1,16 +1,42 @@
-name: Test Custom Node.js Docker Action
+name: Custom Node.js E2E Test
  
 on:
-  workflow_dispatch:
+  push:
+    branches: [ main ]
+  pull_request:
  
 jobs:
-  test:
+  build-and-test:
     runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repo
-        uses: actions/checkout@v3
  
-      - name: Run custom Node.js Docker Action
-        uses: ./   # use local action
-        with:
-          who-to-greet: # id of input
+    steps:
+      # Step 1: Checkout repo
+      - name: Checkout code
+        uses: actions/checkout@v4
+ 
+      # Step 2: Build Node.js Docker image
+      - name: Build Docker image
+        run: docker build -t my-node-app .
+ 
+      # Step 3: Run container
+      - name: Run Node.js container
+        run: docker run -d -p 3000:3000 --name node-test my-node-app
+ 
+      # Step 4: Wait for Node.js server
+      - name: Wait for server
+        run: |
+          for i in {1..10}; do
+            if curl -s http://localhost:3000; then
+              echo "Node.js server is up!"
+              exit 0
+            fi
+            echo "Waiting for server..."
+            sleep 5
+          done
+          echo "Server did not start in time" && exit 1
+ 
+      # Step 5: Test response
+      - name: Verify Node.js response
+        run: |
+          curl -I http://localhost:3000
+          curl http://localhost:3000 | grep "Hello from Node.js & GitHub Actions"
